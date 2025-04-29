@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.dashboard-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+.navbar {
+  position: fixed; /* Fix the navbar to the top */
+  top: 0; /* Position at the top of the screen */
+  left: 0; /* Align to the left edge */
+  width: 100%; /* Span the full width of the screen */
+  background-color: #1a202c; /* Background color (gray-800) */
+  color: white; /* Text color */
+  padding: 0.5rem 0.5rem 0.5rem 2rem; /* Padding */
+  display: flex; /* Flex layout */
+  justify-content: space-between; /* Space between items */
+  align-items: center; /* Center items vertically */
+  z-index: 1000; /* Ensure the navbar stays above other content */
+}
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #ffffff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
