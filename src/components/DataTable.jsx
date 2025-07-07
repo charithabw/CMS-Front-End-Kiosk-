@@ -1,7 +1,9 @@
 import React from "react";
 import { PencilIcon, TrashIcon } from "@heroicons/react/outline";
 
-const DataTable = ({ columns, data, onEdit, onDelete }) => {
+const DataTable = ({ columns, data, onEdit, onDelete, permission }) => {
+  console.log("DataTable rendered with permission:", permission);
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
@@ -39,18 +41,23 @@ const DataTable = ({ columns, data, onEdit, onDelete }) => {
                         className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
                       >
                         <div className="flex space-x-2">
-                          <button
-                            onClick={() => onEdit(row)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => onDelete(row.userId || row.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
+                          {permission?.canEdit && (
+                            <button
+                              onClick={() => onEdit(row)}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              <PencilIcon className="h-5 w-5" />
+                            </button>
+                          )}
+                          {permission?.canDelete && (
+                            <button
+                              onClick={() => onDelete(row)}
+                              //onClick={() => onDelete(row.userId || row.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     );
