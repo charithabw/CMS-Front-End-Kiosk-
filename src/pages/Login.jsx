@@ -1,71 +1,93 @@
-import React from "react";
-//import { useState } from "react";
-
-/*
-const [email, setEmail] = useState("");
-const [password, setPassword] = useState("");
-
-const handleLogin = (e) => {
-  e.preventDefault();
-  // Add login logic here
-  console.log("Login attempt", { email, password });
-};
-*/
+// src/pages/Login.js
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 const Login = () => {
+  const [credentials, setCredentials] = useState({
+    username: "",
+    password: "",
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setCredentials((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const success = await login(credentials);
+    setIsLoading(false);
+
+    if (success) {
+      navigate("/");
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-white p-12 rounded-xl shadow-xl w-full max-w-md transform transition-all duration-500 hover:scale-105">
-        <div className="flex justify-center mb-8">
-          <img
-            src="https://upload.wikimedia.org/wikipedia/en/thumb/1/1e/Bank_of_Ceylon.svg/330px-Bank_of_Ceylon.svg.png"
-            alt="Bank of Ceylon"
-            className="w-32"
-          />
-        </div>
-        <h2 className="text-3xl font-bold text-yellow-500 text-center mb-6">
-          Login to Your Account
+    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-center text-gray-900">
+          Sign in to your account
         </h2>
-        <form>
-          <div className="mb-6">
-            <label htmlFor="email" className="block text-white text-sm mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-yellow-700 transition-all duration-300"
-              placeholder="Enter your email"
-              required
-            />
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm space-y-4">
+            <div>
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                className="relative block w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:ring-yellow-200 focus:border-yellow-500 focus:z-10 sm:text-sm bg-white"
+                placeholder="Enter your username"
+                value={credentials.username}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                className="relative block w-full px-3 py-2 mt-1 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-md appearance-none focus:outline-none focus:ring-yellow-200 focus:border-yellow-500 focus:z-10 sm:text-sm bg-white"
+                placeholder="Enter your password"
+                value={credentials.password}
+                onChange={handleChange}
+              />
+            </div>
           </div>
 
-          <div className="mb-6">
-            <label htmlFor="password" className="block text-white text-sm mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:outline-none focus:border-yellow-700 transition-all duration-300"
-              placeholder="Enter your password"
-              required
-            />
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                isLoading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {isLoading ? "Signing in..." : "Sign in"}
+            </button>
           </div>
-
-          <button
-            type="submit"
-            className="w-full bg-yellow-500 text-black py-3 rounded-lg text-lg font-semibold hover:bg-yellow-600 transition duration-300"
-          >
-            Login
-          </button>
         </form>
-
-        <div className="mt-4 text-center text-white">
-          <a href="#" className="text-yellow-500 hover:underline">
-            Forgot Password?
-          </a>
-        </div>
       </div>
     </div>
   );
