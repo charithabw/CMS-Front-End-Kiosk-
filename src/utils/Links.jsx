@@ -34,6 +34,17 @@ const Links = [
   },
 
   {
+    text: "Categories",
+    path: "/dashboard/categories",
+    icon: <FaCogs />,
+  },
+  {
+    text: "Promotionals",
+    path: "/dashboard/promotionals",
+    icon: <FaCogs />,
+  },
+
+  {
     text: "Admin",
     path: "/admin",
     icon: <FaCogs />,

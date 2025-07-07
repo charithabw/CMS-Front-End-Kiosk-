@@ -3,12 +3,15 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { AuthProvider } from "./context/AuthContext";
 
 import Users from "./pages/Users";
 import Roles from "./pages/Roles";
 import Permissions from "./pages/Permissions";
 import Screens from "./pages/Screens";
 import Products from "./pages/Products";
+import Categories from "./pages/Categories";
+import Promotionals from "./pages/Promotionals";
 //import Categories from "./pages/Categories";
 //import FAQ from "./pages/FAQ";
 //import Feedback from "./pages/Feedback";
@@ -41,10 +44,6 @@ const router = createBrowserRouter([
 
     errorElement: <Errors />,
     children: [
-      {
-        path: "products",
-        element: <ProductLayout />,
-      },
       {
         path: "add-products",
         element: <AddProductForm />,
@@ -95,6 +94,15 @@ const router = createBrowserRouter([
         path: "/dashboard/products",
         element: <Products />,
       },
+
+      {
+        path: "dashboard/categories",
+        element: <Categories />,
+      },
+      {
+        path: "dashboard/promotionals",
+        element: <Promotionals />,
+      },
     ],
   },
   {
@@ -108,8 +116,12 @@ const router = createBrowserRouter([
 ]);
 
 const App = () => {
-  return <RouterProvider router={router} />;
-  <ToastContainer position="bottom-right" autoClose={3000} />;
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />;
+      <ToastContainer position="bottom-right" autoClose={3000} />
+    </AuthProvider>
+  );
 };
 
 export default App;

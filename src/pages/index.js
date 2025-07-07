@@ -13,3 +13,7 @@ export { default as PermissionsManager } from "./PermissionsManager";
 export { default as Users } from "./Users";
 
 export { default as Permissions } from "./Permissions";
+export { default as Screens } from "./Screens";
+export { default as Products } from "./Products";
+export { default as Categories } from "./Categories";
+export { default as Promotionals } from "./Promotionals";
