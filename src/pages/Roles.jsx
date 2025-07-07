@@ -1,151 +1,304 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
 import { toast } from "react-toastify";
+import DataTable from "../components/DataTable";
+import Pagination from "../components/Pagination";
+import RoleModal from "../components/RoleModal";
+import { CommonGet, CommonPost, CommonPut } from "../common/httpClient";
+import { checkPermissions } from "../utils/permissionUtils";
 
-const initialRoles = [
-  {
-    roleId: 1,
-    roleName: "ADMIN",
-    isActive: true,
-    createdDate: "2025-04-27",
-    lastEditedBy: "user1",
-  },
-  {
-    roleId: 2,
-    roleName: "EDITOR",
-    isActive: true,
-    createdDate: "2025-04-27",
-    lastEditedBy: "admin",
-  },
-];
+const Roles = () => {
+  const { user } = useOutletContext();
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentRole, setCurrentRole] = useState(null);
+  const [filterValue, setFilterValue] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [permission, setPermission] = useState(null);
+  const [permissionLoading, setPermissionLoading] = useState(true);
+  const itemsPerPage = 10;
+  const screenID = 1; // Set this to the correct screen ID for roles permissions
 
-export default function Roles() {
-  const [roles, setRoles] = useState(initialRoles);
-  const [filter, setFilter] = useState("");
-  const [form, setForm] = useState({ roleName: "", isActive: true });
-  const [editId, setEditId] = useState(null);
+  useEffect(() => {
+    const fetchPermission = async () => {
+      try {
+        const perm = await checkPermissions(user?.roleId, screenID);
+        setPermission(perm);
+      } catch (error) {
+        setPermission({
+          canView: false,
+          canAdd: false,
+          canEdit: false,
+          canDelete: false,
+        });
+      } finally {
+        setPermissionLoading(false);
+      }
+    };
+    if (user?.roleId) {
+      fetchPermission();
+    } else {
+      setPermissionLoading(false);
+    }
+  }, [user?.roleId]);
 
-  const filtered = roles.filter((r) =>
-    r.roleName.toLowerCase().includes(filter.toLowerCase())
+  useEffect(() => {
+    if (permission?.canView) {
+      fetchRoles();
+    }
+  }, [currentPage, filterValue, permission]);
+
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      const response = await CommonGet("/Role/GetRole", {
+        page: currentPage,
+        limit: itemsPerPage,
+        search: filterValue,
+      });
+      let rolesData = [];
+      if (response?.data) {
+        rolesData = Array.isArray(response.data) ? response.data : [];
+      } else if (Array.isArray(response)) {
+        rolesData = response;
+      }
+      setRoles(rolesData);
+      setTotalPages(
+        response?.totalPages || Math.ceil(rolesData.length / itemsPerPage)
+      );
+    } catch (error) {
+      toast.error("Failed to fetch roles");
+      setRoles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddRole = () => {
+    if (!permission?.canAdd) {
+      toast.error("You don't have permission to add roles");
+      return;
+    }
+    setCurrentRole(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditRole = (role) => {
+    if (!permission?.canEdit) {
+      toast.error("You don't have permission to edit roles");
+      return;
+    }
+    setCurrentRole(role);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteRole = async (role) => {
+    if (!permission?.canDelete) {
+      toast.error("You don't have permission to delete roles");
+      return;
+    }
+    if (window.confirm("Are you sure you want to deactivate this role?")) {
+      try {
+        const updatedData = {
+          roleName: role.roleName,
+          isActive: false,
+          modifiedBy: user?.userId || 1,
+        };
+        await CommonPut(`/Role/UpdateRole/${role.roleID}`, updatedData, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        toast.success("Role deactivated successfully");
+        fetchRoles();
+      } catch (error) {
+        toast.error("Failed to deactivate role");
+      }
+    }
+  };
+
+  const handleSubmitRole = async (roleData) => {
+    try {
+      if (currentRole) {
+        await CommonPut(
+          `/Role/UpdateRole/${currentRole.roleID}`,
+          {
+            ...roleData,
+            modifiedBy: user?.userId || 1,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        toast.success("Role updated successfully");
+      } else {
+        await CommonPost(
+          "/Role/SaveRole",
+          {
+            ...roleData,
+            createdBy: user?.userId || 1,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        toast.success("Role added successfully");
+      }
+      setIsModalOpen(false);
+      fetchRoles();
+    } catch (error) {
+      const errorMessage =
+        error?.response?.data?.message || error?.message || "Operation failed";
+      toast.error(errorMessage);
+      throw error;
+    }
+  };
+
+  const filteredRoles = roles.filter((role) => {
+    if (!role) return false;
+    const searchTerm = filterValue.toLowerCase();
+    return (role.roleName?.toLowerCase() || "").includes(searchTerm);
+  });
+
+  const paginatedRoles = filteredRoles.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.roleName) return toast.error("Role name required");
-    if (editId) {
-      setRoles(
-        roles.map((r) =>
-          r.roleId === editId ? { ...r, ...form, lastEditedBy: "admin" } : r
-        )
-      );
-      toast.success("Role updated");
-    } else {
-      setRoles([
-        ...roles,
-        {
-          ...form,
-          roleId: roles.length + 1,
-          createdDate: new Date().toISOString(),
-          lastEditedBy: "admin",
-        },
-      ]);
-      toast.success("Role created");
-    }
-    setForm({ roleName: "", isActive: true });
-    setEditId(null);
+  const columns = [
+    { header: "ID", accessor: "roleID" },
+    { header: "Role Name", accessor: "roleName" },
+    {
+      header: "Active",
+      accessor: "isActive",
+      cell: (value) => (
+        <span
+          className={`px-2 py-1 rounded text-xs ${
+            value ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+          }`}
+        >
+          {value ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+    { header: "Created Date", accessor: "createdDate" },
+    { header: "Created By", accessor: "createdBy" },
+    ...(permission?.canEdit || permission?.canDelete
+      ? [
+          {
+            header: "Actions",
+            accessor: "actions",
+            cell: (_, row) => (
+              <div className="flex space-x-2">
+                {permission?.canEdit && (
+                  <button
+                    onClick={() => handleEditRole(row)}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    Edit
+                  </button>
+                )}
+                {permission?.canDelete && (
+                  <button
+                    onClick={() => handleDeleteRole(row)}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            ),
+          },
+        ]
+      : []),
+  ];
+
+  if (permissionLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
-  function handleEdit(r) {
-    setForm({ roleName: r.roleName, isActive: r.isActive });
-    setEditId(r.roleId);
-  }
-
-  function handleDelete(id) {
-    setRoles(roles.filter((r) => r.roleId !== id));
-    toast.success("Role deleted");
+  if (!permission?.canView) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex justify-center items-center">
+        <div className="bg-white rounded-lg shadow p-6 text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            Access Denied
+          </h2>
+          <p className="text-gray-600">
+            You don't have permission to view this page.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-6">
-      <h2 className="text-xl font-bold mb-4">Roles</h2>
-      <input
-        className="border p-2 mb-2 mr-2"
-        placeholder="Filter roles..."
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-      />
-      <form onSubmit={handleSubmit} className="mb-4 flex gap-2">
-        <input
-          className="border p-2 bg-gray-200 rounded"
-          placeholder="Role Name"
-          value={form.roleName}
-          onChange={(e) => setForm((f) => ({ ...f, roleName: e.target.value }))}
-        />
-        <label className="flex items-center gap-1">
-          <input
-            type="checkbox"
-            checked={form.isActive}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, isActive: e.target.checked }))
-            }
-          />
-          Active
-        </label>
-        <button
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-          type="submit"
-        >
-          {editId ? "Update" : "Add"}
-        </button>
-        {editId && (
-          <button
-            className="bg-gray-300 px-4 py-2 rounded"
-            onClick={() => {
-              setEditId(null);
-              setForm({ roleName: "", isActive: true });
-            }}
-            type="button"
-          >
-            Cancel
-          </button>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">
+            Role Management (Logged in as {user.username})
+          </h2>
+          <div className="flex space-x-4">
+            <input
+              type="text"
+              placeholder="Filter roles..."
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={filterValue}
+              onChange={(e) => setFilterValue(e.target.value)}
+            />
+            {permission?.canAdd && (
+              <button
+                onClick={handleAddRole}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Add Role
+              </button>
+            )}
+          </div>
+        </div>
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : (
+          <>
+            <DataTable
+              columns={columns}
+              data={paginatedRoles}
+              onEdit={handleEditRole}
+              onDelete={handleDeleteRole}
+              permission={permission}
+            />
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
-      </form>
-      <table className="w-full bg-white rounded shadow">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="p-2 text-black">ID</th>
-            <th className="p-2 text-black">Role Name</th>
-            <th className="p-2 text-black">Active</th>
-            <th className="p-2 text-black">Created</th>
-            <th className="p-2 text-black">Last Edited By</th>
-            <th className="p-2 text-black">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.map((r) => (
-            <tr key={r.roleId}>
-              <td className="p-2 text-black">{r.roleId}</td>
-              <td className="p-2 text-black">{r.roleName}</td>
-              <td className="p-2 text-black">{r.isActive ? "Yes" : "No"}</td>
-              <td className="p-2 text-black">{r.createdDate}</td>
-              <td className="p-2 text-black">{r.lastEditedBy}</td>
-              <td className="p-2">
-                <button
-                  className="text-blue-500 mr-2"
-                  onClick={() => handleEdit(r)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="text-red-500"
-                  onClick={() => handleDelete(r.roleId)}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      </div>
+      {(permission?.canAdd || permission?.canEdit) && (
+        <RoleModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          role={currentRole}
+          onSubmit={handleSubmitRole}
+          user={user}
+        />
+      )}
     </div>
   );
-}
+};
+
+export default Roles;
