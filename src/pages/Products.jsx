@@ -93,14 +93,17 @@ const Products = () => {
             ]);
             // Extract image path from API (array in data)
             const imageDataArr = imageResponse.data || imageResponse;
-            const imageData = Array.isArray(imageDataArr) ? imageDataArr[0] : imageDataArr;
+            const imageData = Array.isArray(imageDataArr)
+              ? imageDataArr[0]
+              : imageDataArr;
             // Extract details
             const detailDataArr = detailResponse.data || detailResponse;
-            const detailData = Array.isArray(detailDataArr) ? detailDataArr[0] : detailDataArr;
+            const detailData = Array.isArray(detailDataArr)
+              ? detailDataArr[0]
+              : detailDataArr;
             return {
               ...product,
-              logo: imageData?.logo || "",
-              backgroundImage: imageData?.backgroundImage || "",
+              ...imageData,
               ...detailData,
             };
           } catch (error) {
@@ -146,38 +149,175 @@ const Products = () => {
       toast.error("You don't have permission to delete products");
       return;
     }
-    if (window.confirm("Are you sure you want to delete this product?")) {
+    if (window.confirm("Are you sure you want to deactivate this product?")) {
       try {
-        await CommonDelete(`/Product/DeleteProduct/${product.productNameID}`);
-        toast.success("Product deleted successfully");
+        // Deactivate ProductName
+        await CommonPut(
+          `/ProductName/UpdateProductName/${product.productNameID}`,
+          {
+            productNameID: product.productNameID,
+            categoryID: categoryId,
+            prodEng: product.prodEng,
+            prodSin: product.prodSin,
+            prodTam: product.prodTam,
+            isActive: false,
+            modifiedBy: user?.userId || 1,
+          }
+        );
+        // Deactivate ProductImage
+        if (product.productImageID) {
+          await CommonPut(
+            `/ProductImage/UpdateProductImage/${product.productImageID}`,
+            {
+              productNameID: product.productNameID,
+              logo: product.logo || "",
+              qrAndroid: product.qrAndroid || "",
+              qrApple: product.qrApple || "",
+              qrHuawei: product.qrHuawei || "",
+              backgroundImage: product.backgroundImage || "",
+              isActive: false,
+              modifiedBy: user?.userId || 1,
+            }
+          );
+        }
+        // Deactivate ProductDetail
+        if (product.productDetailID) {
+          await CommonPut(
+            `/ProductDetail/UpdateProductIDetail/${product.productDetailID}`,
+            {
+              productNameID: product.productNameID,
+              titleEng: product.titleEng,
+              titleSin: product.titleSin,
+              titleTam: product.titleTam,
+              desEng: product.desEng,
+              desSin: product.desSin,
+              desTam: product.desTam,
+              subTitleEng: product.subTitleEng,
+              subTitleSin: product.subTitleSin,
+              subTitleTam: product.subTitleTam,
+              pointListEng: product.pointListEng,
+              pointListSin: product.pointListSin,
+              pointListTam: product.pointListTam,
+              isActive: false,
+              modifiedBy: user?.userId || 1,
+            }
+          );
+        }
+        toast.success("Product deactivated successfully");
         fetchProducts(categoryId);
       } catch (error) {
-        toast.error("Failed to delete product");
+        toast.error("Failed to deactivate product");
       }
     }
   };
 
-  const handleSubmitProduct = async (formData) => {
+  //console.log("pr1", productDetailData);
+
+  const handleSubmitProduct = async ({
+    productNameData,
+    productImageData,
+    productDetailData,
+  }) => {
     try {
-      if (currentProduct?.productNameID) {
+      let productNameID = productNameData.productNameID;
+      // ADD or UPDATE ProductName
+      if (!productNameID) {
+        // Add
+        const res = await CommonPost("/ProductName/SaveProductName", {
+          categoryID: productNameData.categoryID,
+          prodEng: productNameData.prodEng,
+          prodSin: productNameData.prodSin,
+          prodTam: productNameData.prodTam,
+          isActive: true,
+          createdBy: user?.userId || 1,
+        });
+        productNameID = res.productNameID || res.data?.productNameID;
+      } else {
+        // Update
+        await CommonPut(`/ProductName/UpdateProductName/${productNameID}`, {
+          productNameID,
+          categoryID: categoryId,
+          prodEng: productNameData.prodEng,
+          prodSin: productNameData.prodSin,
+          prodTam: productNameData.prodTam,
+          isActive: true,
+          modifiedBy: user?.userId || 1,
+        });
+      }
+      console.log("img:", productImageData);
+      // ADD or UPDATE ProductImage
+      if (!productImageData.productImageID) {
+        await CommonPost("/ProductImage/SaveProductImage", {
+          productNameID,
+          logo: productImageData.logo || "",
+          qrAndroid: productImageData.qrAndroid || "",
+          qrApple: productImageData.qrApple || "",
+          qrHuawei: productImageData.qrHuawei || "",
+          backgroundImage: productImageData.backgroundImage || "",
+          isActive: true,
+          createdBy: user?.userId || 1,
+        });
+      } else {
         await CommonPut(
-          `/Product/UpdateProduct/${currentProduct.productNameID}`,
-          formData,
+          `/ProductImage/UpdateProductImage/${productImageData.productImageID}`,
           {
-            headers: {
-              "Content-Type": "application/json",
-            },
+            productNameID,
+            logo: productImageData.logo || "",
+            qrAndroid: productImageData.qrAndroid || "",
+            qrApple: productImageData.qrApple || "",
+            qrHuawei: productImageData.qrHuawei || "",
+            backgroundImage: productImageData.backgroundImage || "",
+            isActive: true,
+            modifiedBy: user?.userId || 1,
           }
         );
-        toast.success("Product updated successfully");
-      } else {
-        await CommonPost("/Product/SaveProduct", formData, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        toast.success("Product added successfully");
       }
+      console.log("iii:", productDetailData.productDetailID);
+
+      // ADD or UPDATE ProductDetail
+      if (!productDetailData.productDetailID) {
+        console.log("post");
+        await CommonPost("/ProductDetail/SaveProductDetail", {
+          productNameID,
+          titleEng: productDetailData.titleEng,
+          titleSin: productDetailData.titleSin,
+          titleTam: productDetailData.titleTam,
+          desEng: productDetailData.desEng,
+          desSin: productDetailData.desSin,
+          desTam: productDetailData.desTam,
+          subTitleEng: productDetailData.subTitleEng,
+          subTitleSin: productDetailData.subTitleSin,
+          subTitleTam: productDetailData.subTitleTam,
+          pointListEng: productDetailData.pointListEng,
+          pointListSin: productDetailData.pointListSin,
+          pointListTam: productDetailData.pointListTam,
+          isActive: true,
+          createdBy: user?.userId || 1,
+        });
+      } else {
+        console.log("putmethod");
+        await CommonPut(
+          `/ProductDetail/UpdateProductDetail/${productDetailData.productDetailID}`,
+          {
+            productNameID,
+            titleEng: productDetailData.titleEng,
+            titleSin: productDetailData.titleSin,
+            titleTam: productDetailData.titleTam,
+            desEng: productDetailData.desEng,
+            desSin: productDetailData.desSin,
+            desTam: productDetailData.desTam,
+            subTitleEng: productDetailData.subTitleEng,
+            subTitleSin: productDetailData.subTitleSin,
+            subTitleTam: productDetailData.subTitleTam,
+            pointListEng: productDetailData.pointListEng,
+            pointListSin: productDetailData.pointListSin,
+            pointListTam: productDetailData.pointListTam,
+            isActive: true,
+            modifiedBy: user?.userId || 1,
+          }
+        );
+      }
+      toast.success("Product saved successfully");
       setIsModalOpen(false);
       fetchProducts(categoryId);
     } catch (error) {
@@ -371,6 +511,7 @@ const Products = () => {
           product={currentProduct}
           onSubmit={handleSubmitProduct}
           user={user}
+          categoryID={categoryId}
         />
       )}
     </div>
