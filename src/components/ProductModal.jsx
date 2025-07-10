@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
+import { CommonPostFormData } from "../common/httpClient";
 
-const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
+const ProductModal = ({
+  isOpen,
+  onClose,
+  product,
+  onSubmit,
+  user,
+  categoryID,
+}) => {
   const [formData, setFormData] = useState({
+    productDetailID: "",
     productNameID: "",
-    categoryID: "",
+    productImageID: "",
     prodEng: "",
     prodSin: "",
     prodTam: "",
+    isActive: true,
     logo: "",
     logoPreview: "/default-product.png",
     backgroundImage: "",
     backgroundPreview: "/default-bg.jpg",
+    qrAndroid: "",
+    qrAndroidPreview: "/default-qr.png",
+    qrApple: "",
+    qrApplePreview: "/default-qr.png",
+    qrHuawei: "",
+    qrHuaweiPreview: "/default-qr.png",
     titleEng: "",
     titleSin: "",
     titleTam: "",
@@ -24,22 +40,31 @@ const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
     pointListEng: "",
     pointListSin: "",
     pointListTam: "",
-    lastModifiedBy: user?.username || "",
   });
+  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (product) {
+      console.log("product detai", product);
       setFormData({
+        productDetailID: product.productDetailID || "",
         productNameID: product.productNameID || "",
-        categoryID: product.categoryID || "",
+        productImageID: product.productImageID || "",
         prodEng: product.prodEng || "",
         prodSin: product.prodSin || "",
         prodTam: product.prodTam || "",
+        isActive: product.isActive !== undefined ? product.isActive : true,
         logo: product.logo || "",
         logoPreview: product.logo || "/default-product.png",
         backgroundImage: product.backgroundImage || "",
         backgroundPreview: product.backgroundImage || "/default-bg.jpg",
+        qrAndroid: product.qrAndroid || "",
+        qrAndroidPreview: product.qrAndroid || "/default-qr.png",
+        qrApple: product.qrApple || "",
+        qrApplePreview: product.qrApple || "/default-qr.png",
+        qrHuawei: product.qrHuawei || "",
+        qrHuaweiPreview: product.qrHuawei || "/default-qr.png",
         titleEng: product.titleEng || "",
         titleSin: product.titleSin || "",
         titleTam: product.titleTam || "",
@@ -52,19 +77,26 @@ const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
         pointListEng: product.pointListEng || "",
         pointListSin: product.pointListSin || "",
         pointListTam: product.pointListTam || "",
-        lastModifiedBy: user?.username || "",
       });
     } else {
       setFormData({
+        productDetailID: "",
         productNameID: "",
-        categoryID: product?.categoryID || "",
+        productImageID: "",
         prodEng: "",
         prodSin: "",
         prodTam: "",
+        isActive: true,
         logo: "",
         logoPreview: "/default-product.png",
         backgroundImage: "",
         backgroundPreview: "/default-bg.jpg",
+        qrAndroid: "",
+        qrAndroidPreview: "/default-qr.png",
+        qrApple: "",
+        qrApplePreview: "/default-qr.png",
+        qrHuawei: "",
+        qrHuaweiPreview: "/default-qr.png",
         titleEng: "",
         titleSin: "",
         titleTam: "",
@@ -77,49 +109,302 @@ const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
         pointListEng: "",
         pointListSin: "",
         pointListTam: "",
-        lastModifiedBy: user?.username || "",
       });
     }
-  }, [product, user]);
+    setErrors({});
+  }, [product]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.prodEng.trim())
+      newErrors.prodEng = "English name is required";
+    if (!formData.prodSin.trim())
+      newErrors.prodSin = "Sinhala name is required";
+    if (!formData.prodTam.trim()) newErrors.prodTam = "Tamil name is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogoChange = (e) => {
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleLogoChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData((prev) => ({
-        ...prev,
-        logo: file,
-        logoPreview: URL.createObjectURL(file),
-      }));
+      if (!file.type.startsWith("image/")) {
+        setErrors((prev) => ({
+          ...prev,
+          logo: "Only image files are allowed",
+        }));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          logo: "Image size must be less than 5MB",
+        }));
+        return;
+      }
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      try {
+        const data = await CommonPostFormData("upload", uploadFormData);
+        if (data.imagePath) {
+          setFormData((prev) => ({
+            ...prev,
+            logo: data.imagePath,
+            logoPreview: URL.createObjectURL(file),
+          }));
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.logo;
+            return newErrors;
+          });
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            logo: "No image path returned from server",
+          }));
+        }
+      } catch (err) {
+        setErrors((prev) => ({ ...prev, logo: "Failed to upload image" }));
+      }
     }
   };
 
-  const handleBackgroundChange = (e) => {
+  const handleBackgroundChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData((prev) => ({
-        ...prev,
-        backgroundImage: file,
-        backgroundPreview: URL.createObjectURL(file),
-      }));
-    } else if (e.target.value) {
-      setFormData((prev) => ({
-        ...prev,
-        backgroundImage: e.target.value,
-        backgroundPreview: e.target.value,
-      }));
+      if (!file.type.startsWith("image/")) {
+        setErrors((prev) => ({
+          ...prev,
+          backgroundImage: "Only image files are allowed",
+        }));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          backgroundImage: "Image size must be less than 5MB",
+        }));
+        return;
+      }
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      try {
+        const data = await CommonPostFormData("upload", uploadFormData);
+        if (data.imagePath) {
+          setFormData((prev) => ({
+            ...prev,
+            backgroundImage: data.imagePath,
+            backgroundPreview: URL.createObjectURL(file),
+          }));
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.backgroundImage;
+            return newErrors;
+          });
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            backgroundImage: "No image path returned from server",
+          }));
+        }
+      } catch (err) {
+        setErrors((prev) => ({
+          ...prev,
+          backgroundImage: "Failed to upload image",
+        }));
+      }
+    }
+  };
+
+  const handleQrAndroidChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setErrors((prev) => ({
+          ...prev,
+          qrAndroid: "Only image files are allowed",
+        }));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          qrAndroid: "Image size must be less than 5MB",
+        }));
+        return;
+      }
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      try {
+        const data = await CommonPostFormData("upload", uploadFormData);
+        if (data.imagePath) {
+          setFormData((prev) => ({
+            ...prev,
+            qrAndroid: data.imagePath,
+            qrAndroidPreview: URL.createObjectURL(file),
+          }));
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.qrAndroid;
+            return newErrors;
+          });
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            qrAndroid: "No image path returned from server",
+          }));
+        }
+      } catch (err) {
+        setErrors((prev) => ({ ...prev, qrAndroid: "Failed to upload image" }));
+      }
+    }
+  };
+
+  const handleQrAppleChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setErrors((prev) => ({
+          ...prev,
+          qrApple: "Only image files are allowed",
+        }));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          qrApple: "Image size must be less than 5MB",
+        }));
+        return;
+      }
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      try {
+        const data = await CommonPostFormData("upload", uploadFormData);
+        if (data.imagePath) {
+          setFormData((prev) => ({
+            ...prev,
+            qrApple: data.imagePath,
+            qrApplePreview: URL.createObjectURL(file),
+          }));
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.qrApple;
+            return newErrors;
+          });
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            qrApple: "No image path returned from server",
+          }));
+        }
+      } catch (err) {
+        setErrors((prev) => ({ ...prev, qrApple: "Failed to upload image" }));
+      }
+    }
+  };
+
+  const handleQrHuaweiChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setErrors((prev) => ({
+          ...prev,
+          qrHuawei: "Only image files are allowed",
+        }));
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          qrHuawei: "Image size must be less than 5MB",
+        }));
+        return;
+      }
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+      try {
+        const data = await CommonPostFormData("upload", uploadFormData);
+        if (data.imagePath) {
+          setFormData((prev) => ({
+            ...prev,
+            qrHuawei: data.imagePath,
+            qrHuaweiPreview: URL.createObjectURL(file),
+          }));
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.qrHuawei;
+            return newErrors;
+          });
+        } else {
+          setErrors((prev) => ({
+            ...prev,
+            qrHuawei: "No image path returned from server",
+          }));
+        }
+      } catch (err) {
+        setErrors((prev) => ({ ...prev, qrHuawei: "Failed to upload image" }));
+      }
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      // Compose data for all three APIs
+      const productNameData = {
+        productNameID: formData.productNameID || undefined,
+        categoryID: categoryID,
+        prodEng: formData.prodEng,
+        prodSin: formData.prodSin,
+        prodTam: formData.prodTam,
+        isActive: formData.isActive,
+        createdBy: user?.userId || 1,
+        modifiedBy: user?.userId || 1,
+      };
+      const productImageData = {
+        productImageID: formData.productImageID || undefined,
+        productNameID: formData.productNameID || undefined,
+        logo: formData.logo || "",
+        qrAndroid: formData.qrAndroid || "",
+        qrApple: formData.qrApple || "",
+        qrHuawei: formData.qrHuawei || "",
+        backgroundImage: formData.backgroundImage || "",
+        isActive: formData.isActive,
+        createdBy: user?.userId || 1,
+        modifiedBy: user?.userId || 1,
+      };
+      const productDetailData = {
+        productDetailID: formData.productDetailID || undefined,
+        productNameID: formData.productNameID || undefined,
+        titleEng: formData.titleEng,
+        titleSin: formData.titleSin,
+        titleTam: formData.titleTam,
+        desEng: formData.desEng,
+        desSin: formData.desSin,
+        desTam: formData.desTam,
+        subTitleEng: formData.subTitleEng,
+        subTitleSin: formData.subTitleSin,
+        subTitleTam: formData.subTitleTam,
+        pointListEng: formData.pointListEng,
+        pointListSin: formData.pointListSin,
+        pointListTam: formData.pointListTam,
+        isActive: formData.isActive,
+        createdBy: user?.userId || 1,
+        modifiedBy: user?.userId || 1,
+      };
+      await onSubmit({ productNameData, productImageData, productDetailData });
+      onClose();
     } catch (error) {
       toast.error(error.message || "Failed to save product");
     } finally {
@@ -150,9 +435,14 @@ const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
                   name="prodEng"
                   value={formData.prodEng}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  className={`w-full px-3 py-2 border rounded ${
+                    errors.prodEng ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.prodEng && (
+                  <p className="text-red-500 text-sm mt-1">{errors.prodEng}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -163,9 +453,14 @@ const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
                   name="prodSin"
                   value={formData.prodSin}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  className={`w-full px-3 py-2 border rounded ${
+                    errors.prodSin ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.prodSin && (
+                  <p className="text-red-500 text-sm mt-1">{errors.prodSin}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -176,9 +471,14 @@ const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
                   name="prodTam"
                   value={formData.prodTam}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
+                  className={`w-full px-3 py-2 border rounded ${
+                    errors.prodTam ? "border-red-500" : "border-gray-300"
+                  }`}
                   required
                 />
+                {errors.prodTam && (
+                  <p className="text-red-500 text-sm mt-1">{errors.prodTam}</p>
+                )}
               </div>
             </div>
             <div className="space-y-4">
@@ -205,6 +505,9 @@ const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
                     className="text-sm text-gray-500"
                   />
                 </div>
+                {errors.logo && (
+                  <p className="text-red-500 text-sm mt-1">{errors.logo}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -221,23 +524,98 @@ const ProductModal = ({ isOpen, onClose, product, onSubmit, user }) => {
                       }}
                     />
                   </div>
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      name="backgroundImage"
-                      value={typeof formData.backgroundImage === "string" ? formData.backgroundImage : ""}
-                      onChange={handleBackgroundChange}
-                      placeholder="Image URL"
-                      className="w-full px-3 py-2 border border-gray-300 rounded mb-2"
-                    />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleBackgroundChange}
-                      className="text-sm text-gray-500 w-full"
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBackgroundChange}
+                    className="text-sm text-gray-500"
+                  />
+                </div>
+                {errors.backgroundImage && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.backgroundImage}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  QR Android
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded overflow-hidden border">
+                    <img
+                      src={formData.qrAndroidPreview || "/default-qr.png"}
+                      alt="QR Android preview"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = "/default-qr.png";
+                      }}
                     />
                   </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleQrAndroidChange}
+                    className="text-sm text-gray-500"
+                  />
                 </div>
+                {errors.qrAndroid && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.qrAndroid}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  QR Apple
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded overflow-hidden border">
+                    <img
+                      src={formData.qrApplePreview || "/default-qr.png"}
+                      alt="QR Apple preview"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = "/default-qr.png";
+                      }}
+                    />
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleQrAppleChange}
+                    className="text-sm text-gray-500"
+                  />
+                </div>
+                {errors.qrApple && (
+                  <p className="text-red-500 text-sm mt-1">{errors.qrApple}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  QR Huawei
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded overflow-hidden border">
+                    <img
+                      src={formData.qrHuaweiPreview || "/default-qr.png"}
+                      alt="QR Huawei preview"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = "/default-qr.png";
+                      }}
+                    />
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleQrHuaweiChange}
+                    className="text-sm text-gray-500"
+                  />
+                </div>
+                {errors.qrHuawei && (
+                  <p className="text-red-500 text-sm mt-1">{errors.qrHuawei}</p>
+                )}
               </div>
             </div>
           </div>
